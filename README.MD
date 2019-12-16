@@ -1,0 +1,1 @@
+#https://bitbucket.org/farmas/atlassian.net-sdk/src/master/
