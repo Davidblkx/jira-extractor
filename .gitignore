@@ -4,6 +4,7 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 temp.ps1
+credentials.pass
 
 # User-specific files
 *.rsuser
