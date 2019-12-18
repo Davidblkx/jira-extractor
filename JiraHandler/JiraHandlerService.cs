@@ -13,6 +13,10 @@ namespace jiraps.JiraHandler
         private static readonly string DEFAULT_SPRINT = "UNKOWN";
         private string _sprint = DEFAULT_SPRINT;
 
+        private static DateTime _sprintStart = DateTime.Now;
+        private static DateTime _sprintEnd = DateTime.Now;
+        private static bool _sprintDatesInit = false;
+
         public JiraHandlerService(Jira client)
         {
             _jiraClient = client;
@@ -24,6 +28,17 @@ namespace jiraps.JiraHandler
             var client = Jira.CreateRestClient(credentials.ServerUrl, credentials.User, credentials.Token);
             client.Issues.MaxIssuesPerRequest = 2500;
             return new JiraHandlerService(client);
+        }
+
+        public static (DateTime startSprint, DateTime endSprint) GetSprintDate()
+        {
+            if (!_sprintDatesInit) {
+                _sprintStart = GetDateFromConsole("Sprint start date");
+                _sprintEnd = GetDateFromConsole("Sprint end date");
+                _sprintDatesInit = true;
+            }
+
+            return (_sprintStart, _sprintEnd);
         }
 
         public string GetCurrentSprint() {
@@ -48,9 +63,8 @@ namespace jiraps.JiraHandler
             return (await _jiraClient.Issues.GetIssuesFromJqlAsync(JQL)).AsEnumerable();
         }
 
-        public async IAsyncEnumerable<Worklog> GetWorklogsCurrentSprint() {
-            var startDate = GetDateFromConsole("Sprint start date");
-            var endDate = GetDateFromConsole("Sprint end date");
+        public async IAsyncEnumerable<IssueWorklog> GetWorklogsCurrentSprint() {
+            var (startDate, endDate) = GetSprintDate();
             var issues = await GetTaskCurrentSprint();
             foreach (var i in issues)
             {
@@ -59,12 +73,12 @@ namespace jiraps.JiraHandler
                     .Where(l => DateTime.Compare(l.StartDate ?? DateTime.MaxValue, endDate) <= 0);
                 foreach (var l in logs)
                 {
-                    yield return l;
+                    yield return new IssueWorklog(l, i.Key.Value);
                 }
             }
         }
 
-        private DateTime GetDateFromConsole(string question) {
+        private static DateTime GetDateFromConsole(string question) {
             Console.WriteLine(question + ": (YYYY-MM-DD)");
             var dateStr = Console.ReadLine();
             if (!DateTime.TryParse(dateStr, out var date)) {
