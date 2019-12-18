@@ -49,15 +49,29 @@ namespace jiraps.JiraHandler
         }
 
         public async IAsyncEnumerable<Worklog> GetWorklogsCurrentSprint() {
+            var startDate = GetDateFromConsole("Sprint start date");
+            var endDate = GetDateFromConsole("Sprint end date");
             var issues = await GetTaskCurrentSprint();
             foreach (var i in issues)
             {
-                var logs = await i.GetWorklogsAsync();
+                var logs = (await i.GetWorklogsAsync())
+                    .Where(l => DateTime.Compare(l.StartDate ?? DateTime.MinValue, startDate) >= 0)
+                    .Where(l => DateTime.Compare(l.StartDate ?? DateTime.MaxValue, endDate) <= 0);
                 foreach (var l in logs)
                 {
                     yield return l;
                 }
             }
+        }
+
+        private DateTime GetDateFromConsole(string question) {
+            Console.WriteLine(question + ": (YYYY-MM-DD)");
+            var dateStr = Console.ReadLine();
+            if (!DateTime.TryParse(dateStr, out var date)) {
+                Console.WriteLine("Invalid date, try gain!");
+                return GetDateFromConsole(question);
+            }
+            return date;
         }
     }
 }
