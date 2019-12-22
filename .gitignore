@@ -5,6 +5,7 @@
 
 temp.ps1
 credentials.pass
+*.csv
 
 # User-specific files
 *.rsuser

@@ -11,7 +11,7 @@ namespace jiraps.JiraHandler
     {
         private readonly Jira _jiraClient;
         private static readonly string DEFAULT_SPRINT = "UNKOWN";
-        private string _sprint = DEFAULT_SPRINT;
+        private static string _sprint = DEFAULT_SPRINT;
 
         private static DateTime _sprintStart = DateTime.Now;
         private static DateTime _sprintEnd = DateTime.Now;
@@ -41,11 +41,23 @@ namespace jiraps.JiraHandler
             return (_sprintStart, _sprintEnd);
         }
 
+        public static void SetSprintDate(DateTime start, DateTime end) {
+             if (!_sprintDatesInit) {
+                _sprintStart = start;
+                _sprintEnd = end;
+                _sprintDatesInit = true;
+            }
+        }
+
         public string GetCurrentSprint() {
             if (_sprint != DEFAULT_SPRINT) return _sprint;
             Console.WriteLine("Please insert the current sprint:");
             _sprint = Console.ReadLine();
             return _sprint;
+        }
+
+        public static void SetCurrentSprint(string sprint) {
+            _sprint = sprint;
         }
 
         public async Task<Project> GetProject() {

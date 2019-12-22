@@ -10,7 +10,10 @@ namespace jiraps.ResultsHandler
 {
     public class ResultsHandlerService
     {
+        private static string serverUrl = "";
+
         public static async Task GenerateCSVReport() {
+            serverUrl = (await jiraps.Credentials.CredentialsManager.GetCredentials()).ServerUrl;
             Console.WriteLine("Loading worklog from current sprint...");
             var data = await GetWorklogsByUser();
 
@@ -23,10 +26,66 @@ namespace jiraps.ResultsHandler
         private static async Task GenerateReportForUser(string user, List<IssueWorklog> worklogs)
         {
             var (start, end) = JiraHandlerService.GetSprintDate();
-            var fileName = $"{user}.{start}.{end}.csv";
+            var fileName = $"{user}.{start.Year}.{start.Month}.from{start.Day}.to{end.Day}.csv";
+            var csvRows = new List<string>();
             
+            csvRows.Add(BuildCSVHeader(start, end));
             var groupByIssue = worklogs.GroupBy(w => w.IssueId);
-            // MAP THIS RIGHT
+            foreach (var grp in groupByIssue) {
+                csvRows.Add(BuildCSVRow(grp.Key, start, end, grp));
+            }
+            csvRows.Add(BuildCSVRowTotal(start, end, worklogs));
+            csvRows.Add("total" + "," + CalcTotalHours(worklogs));
+
+            await File.WriteAllLinesAsync(fileName, csvRows);
+        }
+
+        private static string BuildCSVHeader(DateTime start, DateTime end)
+        {
+            var csvRow = "Issue";
+            if (start > end) { return csvRow; }
+            for (var d = start; d <= end; d = d.AddDays(1)) {
+                csvRow += "," + d.ToShortDateString();
+            }
+            return csvRow;
+        }
+
+        private static string BuildCSVRow(string issueId, DateTime start, DateTime end, IEnumerable<IssueWorklog> worklogs)
+        {
+            var csvRow = serverUrl + "/browse/" + issueId;
+            if (start > end) { return csvRow; }
+            for (var d = start; d <= end; d = d.AddDays(1)) {
+                var logs = worklogs.Where(w => MatchDate(w.StartDate, d));
+                var total = CalcTotalHours(logs);
+                csvRow += $",{total}";
+            }
+            return csvRow;
+        }
+
+        private static string BuildCSVRowTotal(DateTime start, DateTime end, IEnumerable<IssueWorklog> worklogs)
+        {
+            var csvRow = "total day";
+            if (start > end) { return csvRow; }
+            for (var d = start; d <= end; d = d.AddDays(1)) {
+                var logs = worklogs.Where(w => MatchDate(w.StartDate, d));
+                var total = CalcTotalHours(logs);
+                csvRow += $",{total}";
+            }
+            return csvRow;
+        }
+
+        private static string CalcTotalHours(IEnumerable<IssueWorklog> logs)
+        {
+            var sum = logs.Sum(w => w.TimeSpentInSeconds);
+            var hours = TimeSpan.FromSeconds(sum);
+            return $"{Math.Round(hours.TotalHours, 2)}".Replace(",", ".");
+        }
+
+        private static bool MatchDate(DateTime? d1, DateTime d2) {
+            if (!d1.HasValue) return false;
+            return d1.Value.Year == d2.Year
+                && d1.Value.Month == d2.Month
+                && d1.Value.Day == d2.Day;
         }
 
         private static long CalculateHours(IEnumerable<Worklog> worklogs, DateTime date)
